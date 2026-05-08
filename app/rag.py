@@ -1,6 +1,10 @@
 from typing import List, Dict, Tuple
 from langchain_core.documents import Document
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_openai import OpenAIEmbeddings
+import pickle
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +149,10 @@ NYC never sleeps! The city that never sleeps is home to world-class museums, ico
 
 class TravelRAG:
     def __init__(self):
+        self.embeddings = OpenAIEmbeddings()
+        self.db_path = "vector_store.pkl"
         self.docs = self._create_documents()
+        self.vector_store = self._load_db()
 
     def _create_documents(self) -> List[Document]:
         """Convert travel documents to LangChain documents."""
@@ -197,5 +204,26 @@ class TravelRAG:
                 return content[:1000]
         return travel_documents.get("paris", "No guide available.")[:1000]
 
+    def _load_db(self):
+        """Tải database từ file nếu tồn tại, nếu không tạo mới từ docs mặc định."""
+        if os.path.exists(self.db_path):
+            try:
+                with open(self.db_path, "rb") as f:
+                    return pickle.load(f)
+            except Exception as e:
+                logger.error(f"Lỗi khi tải vector store: {e}")
+        
+        # Tạo mới từ các tài liệu mặc định nếu không có file lưu trữ
+        return InMemoryVectorStore.from_documents(self.docs, self.embeddings)
+     
+    def add_knowledge(self, text: str, metadata: dict):
+        """Hàm logic cho admin đẩy kiến thức"""
+        self.vector_store.add_texts([text], metadatas=[metadata]) 
+        try:
+            with open(self.db_path, "wb") as f:
+                pickle.dump(self.vector_store, f)
+            logger.info(f"Đã lưu kiến thức mới vào {self.db_path}")
+        except Exception as e:
+            logger.error(f"Không thể lưu file database: {e}")
 
 rag = TravelRAG()
