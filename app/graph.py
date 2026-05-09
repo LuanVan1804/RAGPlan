@@ -1,9 +1,9 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Any, Literal
 from langchain_openai import ChatOpenAI
+from app.config import settings
 from app.tool import get_weather, calculate_trip_cost, parse_user_query, format_response
 from app.rag import rag
-from app.config import settings
 from datetime import datetime, timedelta
 import json
 import logging
