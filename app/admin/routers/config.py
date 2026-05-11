@@ -1,6 +1,6 @@
 """Config Router — endpoints quản lý cấu hình runtime.
 
-Tất cả endpoints đều public, không cần xác thực.
+Tất cả endpoints public, không cần xác thực.
 Cấu hình lưu in-memory, sẽ reset khi restart server.
 """
 

@@ -24,17 +24,17 @@ app.add_middleware(
 
 def travel_chain(user_input: dict) -> dict:
     """Wrapper to convert input format for LangGraph."""
-    logger.info(f"🌍 Processing request: {user_input}")
+    logger.info(f"Processing request: {user_input}")
     message = user_input.get("message", user_input)
     result = graph.invoke({"user_input": str(message)})
-    logger.info(f"✅ Response complete. Final plan length: {len(result.get('final_plan', ''))}")
+    logger.info(f"Response complete. Final plan length: {len(result.get('final_plan', ''))}")
     return result
 
 @app.get("/")
 async def root():
     """Root endpoint with API info."""
     return {
-        "message": "🌍 Travel Plan Chatbot API",
+        "message": "Travel Plan Chatbot API",
         "status": "running",
         "endpoints": {
             "docs": "/docs",
@@ -66,9 +66,9 @@ add_routes(
     enable_public_trace_link_endpoint=True
 )
 
-logger.info("✅ LangServe application initialized")
-logger.info(f"📊 LangSmith Project: {settings.LANGSMITH_PROJECT}")
-logger.info("🔗 Available endpoints:")
+logger.info("LangServe application initialized")
+logger.info(f"LangSmith Project: {settings.LANGSMITH_PROJECT}")
+logger.info("Available endpoints:")
 logger.info("   - /docs (Swagger UI)")
 logger.info("   - /travel-planner/invoke")
 logger.info("   - /travel-planner/stream")
