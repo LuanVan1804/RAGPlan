@@ -4,6 +4,7 @@ from langserve import add_routes
 from app.graph import graph
 from app.config import settings
 from langchain_core.runnables import RunnableLambda
+from app.admin import admin_router
 
 app = FastAPI(
     title="Travel Plan Chatbot",
@@ -43,6 +44,9 @@ add_routes(
     enable_public_trace_link_endpoint=True
 )
 
+# --- Admin routes (public, không cần đăng nhập) ---
+app.include_router(admin_router)
+
 @app.get("/")
 async def root():
     """Root endpoint with API info."""
@@ -54,7 +58,10 @@ async def root():
             "health": "/health",
             "travel_planner": "/travel-planner/invoke",
             "travel_planner_batch": "/travel-planner/batch",
-            "travel_planner_stream": "/travel-planner/stream"
+            "travel_planner_stream": "/travel-planner/stream",
+            "admin_knowledge": "/admin/knowledge/list",
+            "admin_monitoring": "/admin/monitoring/status",
+            "admin_config": "/admin/config",
         },
         "langsmith_tracing": settings.LANGSMITH_PROJECT
     }

@@ -1,6 +1,10 @@
 from typing import List, Dict, Tuple
 from langchain_core.documents import Document
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_huggingface import HuggingFaceEmbeddings
+import pickle
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +149,10 @@ NYC never sleeps! The city that never sleeps is home to world-class museums, ico
 
 class TravelRAG:
     def __init__(self):
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.db_path = "vector_store.pkl"
         self.docs = self._create_documents()
+        self.vector_store = self._load_db()
 
     def _create_documents(self) -> List[Document]:
         """Convert travel documents to LangChain documents."""
@@ -197,5 +204,89 @@ class TravelRAG:
                 return content[:1000]
         return travel_documents.get("paris", "No guide available.")[:1000]
 
+    def _load_db(self):
+        """Tải database từ file nếu tồn tại, nếu không tạo mới từ docs mặc định."""
+        if os.path.exists(self.db_path):
+            try:
+                with open(self.db_path, "rb") as f:
+                    return pickle.load(f)
+            except Exception as e:
+                logger.error(f"Lỗi khi tải vector store: {e}")
+        
+        # Tạo mới từ các tài liệu mặc định nếu không có file lưu trữ
+        return InMemoryVectorStore.from_documents(self.docs, self.embeddings)
+     
+    def add_knowledge(self, text: str, metadata: dict) -> str:
+        """Thêm kiến thức mới vào vector store.
+
+        Args:
+            text: Nội dung tài liệu.
+            metadata: Metadata đi kèm (destination, category, tags, ...).
+
+        Returns:
+            doc_id (UUID string) của tài liệu vừa tạo.
+        """
+        import uuid
+        from datetime import datetime, timezone
+
+        doc_id = str(uuid.uuid4())
+        metadata["doc_id"] = doc_id
+        metadata["created_at"] = datetime.now(timezone.utc).isoformat()
+        metadata.setdefault("source", "admin_upload")
+
+        doc = Document(page_content=text, metadata=metadata)
+        self.docs.append(doc)
+        self.vector_store.add_texts([text], metadatas=[metadata])
+        self._persist()
+        logger.info(f"Đã thêm kiến thức mới: doc_id={doc_id}, destination={metadata.get('destination')}")
+        return doc_id
+
+    def get_all_documents(self) -> List[Document]:
+        """Trả về toàn bộ danh sách documents."""
+        return self.docs
+
+    def get_document_by_id(self, doc_id: str) -> Document | None:
+        """Tìm document theo doc_id trong metadata."""
+        for doc in self.docs:
+            if doc.metadata.get("doc_id") == doc_id:
+                return doc
+        return None
+
+    def rebuild_vector_store(self):
+        """Rebuild toàn bộ vector store từ self.docs và persist lại.
+
+        Dùng khi cập nhật nội dung document (xóa doc cũ, thêm doc mới).
+        """
+        self.vector_store = InMemoryVectorStore.from_documents(self.docs, self.embeddings)
+        self._persist()
+        logger.info(f"Đã rebuild vector store với {len(self.docs)} documents")
+
+    def get_stats(self) -> dict:
+        """Trả về thống kê tổng quan về knowledge base."""
+        destinations = {}
+        for doc in self.docs:
+            dest = doc.metadata.get("destination", "unknown")
+            destinations[dest] = destinations.get(dest, 0) + 1
+
+        file_size_kb = 0.0
+        if os.path.exists(self.db_path):
+            file_size_kb = os.path.getsize(self.db_path) / 1024
+
+        return {
+            "total_documents": len(self.docs),
+            "destinations_covered": list(destinations.keys()),
+            "docs_by_destination": destinations,
+            "persistence_file": self.db_path,
+            "persistence_file_size_kb": round(file_size_kb, 2),
+        }
+
+    def _persist(self):
+        """Lưu vector store xuống file pickle."""
+        try:
+            with open(self.db_path, "wb") as f:
+                pickle.dump(self.vector_store, f)
+            logger.info(f"Đã lưu vector store vào {self.db_path}")
+        except Exception as e:
+            logger.error(f"Không thể lưu file database: {e}")
 
 rag = TravelRAG()
