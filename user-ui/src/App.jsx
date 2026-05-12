@@ -132,9 +132,6 @@ function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] antialiased overflow-hidden font-['Outfit'] text-slate-900">
-      {/* Sidebar của chúng ta đã viết bằng Tailwind */}
-      <Sidebar />
-
       {/* Khu vực Chat sử dụng thư viện chatbotify */}
       <main className="flex-1 flex flex-col h-full bg-white relative">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#2563eb 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }}></div>
