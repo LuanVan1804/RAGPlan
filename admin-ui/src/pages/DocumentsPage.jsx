@@ -45,7 +45,7 @@ const DocumentsPage = () => {
             Knowledge <span className="text-primary-500">Base</span>
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-            Manage and monitor your RAG system's core knowledge.
+            Manage RAG system's core knowledge.
           </p>
         </div>
         
@@ -93,10 +93,6 @@ const DocumentsPage = () => {
         
         <div className="flex items-center space-x-6 text-sm font-bold text-slate-400">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-            <span>Vector Store: Active</span>
-          </div>
-          <div className="flex items-center space-x-2">
             <span className="text-slate-900 dark:text-slate-200">{documents.length}</span>
             <span>Documents</span>
           </div>
@@ -106,15 +102,6 @@ const DocumentsPage = () => {
       {/* Main Table */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         <DocumentTable documents={filteredDocs} loading={loading} />
-      </div>
-
-      {/* Footer Info */}
-      <div className="flex items-center justify-center py-6">
-        <div className="flex items-center space-x-2 px-4 py-2 bg-slate-100 dark:bg-surface-800/50 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200/50 dark:border-slate-700/50">
-          <span>Engine: RAG-PRO</span>
-          <span className="opacity-30">|</span>
-          <span>Storage: Local Vector Cache</span>
-        </div>
       </div>
     </div>
   );
