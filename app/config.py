@@ -10,6 +10,12 @@ class Settings:
     LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
     LANGSMITH_PROJECT: str = os.getenv("LANGSMITH_PROJECT", "travel-chatbot")
     LANGSMITH_ENDPOINT: str = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+    PINECONE_API_KEY: str = os.getenv("PINECONE_API_KEY", "")
+    PINECONE_INDEX_NAME: str = os.getenv("PINECONE_INDEX_NAME", "ragplan-travel")
+    PINECONE_NAMESPACE: str = os.getenv("PINECONE_NAMESPACE", "travel-guides")
+    PINECONE_CLOUD: str = os.getenv("PINECONE_CLOUD", "aws")
+    PINECONE_REGION: str = os.getenv("PINECONE_REGION", "us-east-1")
+    PINECONE_EMBEDDING_MODEL: str = os.getenv("PINECONE_EMBEDDING_MODEL", "text-embedding-3-small")
 
 settings = Settings()
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langserve import add_routes
-from app.graph import graph
+from app.graph import app_graph
 from app.config import settings
 import logging
 
@@ -26,7 +26,7 @@ def travel_chain(user_input: dict) -> dict:
     """Wrapper to convert input format for LangGraph."""
     logger.info(f"Processing request: {user_input}")
     message = user_input.get("message", user_input)
-    result = graph.invoke({"user_input": str(message)})
+    result = app_graph.invoke({"user_input": str(message)})
     logger.info(f"Response complete. Final plan length: {len(result.get('final_plan', ''))}")
     return result
 

@@ -1,7 +1,7 @@
 import uuid
 import logging
 from typing import Dict, Any, Optional
-from app.graph import graph
+from app.graph import app_graph
 from app.user.schemas.chat import ChatRequest, ChatResponse
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class ChatService:
         try:
             # Chạy graph
             # Lưu ý: graph.invoke là đồng bộ, nhưng chúng ta bọc nó trong một service
-            result = graph.invoke(inputs, config=config)
+            result = app_graph.invoke(inputs, config=config)
             
             return ChatResponse(
                 final_plan=result.get("final_plan", "No plan generated."),
@@ -44,7 +44,7 @@ class ChatService:
         Lấy lịch sử hội thoại cho một thread cụ thể.
         """
         config = {"configurable": {"thread_id": thread_id}}
-        state = graph.get_state(config)
+        state = app_graph.get_state(config)
         
         # Trong triển khai thực tế với checkpointing, chúng ta có thể muốn lặp qua
         # lịch sử. Hiện tại, chúng ta trả về các giá trị trạng thái hiện hành.

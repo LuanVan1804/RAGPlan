@@ -36,8 +36,11 @@ async def get_status(admin_key: str = Header(None)):
     if admin_key != "admin123":
         raise HTTPException(status_code=403, detail="Bạn không có quyền admin")
     
+    stats = rag.get_stats()
     return {
-        "vector_store_type": "InMemoryVectorStore",
-        "persistence_file": "vector_store.pkl",
-        "current_destinations": list(set([doc.metadata.get("destination") for doc in rag.docs]))
+        "vector_store_type": stats["vector_store_type"],
+        "pinecone_index": stats["pinecone_index"],
+        "namespace": stats["namespace"],
+        "current_destinations": stats["destinations_covered"],
+        "enabled": stats["enabled"],
     }

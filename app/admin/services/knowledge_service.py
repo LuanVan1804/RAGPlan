@@ -159,13 +159,7 @@ def update_document(doc_id: str, updates: UpdateKnowledgeRequest) -> DocumentInf
     if updates.tags is not None:
         new_metadata["tags"] = updates.tags
 
-    # Thay thế document trong danh sách
-    new_doc = Document(page_content=new_content, metadata=new_metadata)
-    rag.docs = [d for d in rag.docs if d.metadata.get("doc_id") != doc_id]
-    rag.docs.append(new_doc)
-
-    # Rebuild vector store vì InMemoryVectorStore không hỗ trợ update in-place
-    rag.rebuild_vector_store()
+    new_doc = rag.update_knowledge(doc_id=doc_id, text=new_content, metadata=new_metadata)
     logger.info(f"Updated document: {doc_id}")
 
     return _doc_to_info(new_doc)
@@ -181,19 +175,6 @@ def search_similar(query: str, k: int = 3) -> list[DocumentInfo]:
     Returns:
         Danh sách DocumentInfo phù hợp nhất.
     """
-    all_docs = rag.get_all_documents()
-    if not all_docs:
-        return []
-
-    # Sử dụng lexical scoring hiện có
-    scored = []
-    for doc in all_docs:
-        score = rag._score_document(query, doc.page_content)
-        scored.append((score, doc))
-
-    results = [
-        _doc_to_info(doc)
-        for score, doc in sorted(scored, key=lambda x: x[0], reverse=True)[:k]
-        if score > 0
-    ]
+    docs = rag.query_documents(query=query, k=k)
+    results = [_doc_to_info(doc) for doc in docs]
     return results

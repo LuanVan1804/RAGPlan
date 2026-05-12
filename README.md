@@ -1,128 +1,191 @@
-# Travel Plan Chatbot
+# RAGPlan - Travel Planning Chatbot
 
-Travel-only chatbot built with LangGraph + LangServe (backend) and React (frontend).  
-It validates user requests, retrieves travel context from RAG, and returns either:
-1. a travel plan, or
-2. travel recommendations.
+RAGPlan is a travel-focused chatbot with:
+1. **Backend**: FastAPI + LangGraph + LangServe (`app/`)
+2. **User UI**: React chat client (`user-ui/`)
+3. **Admin UI**: React dashboard for knowledge management (`admin-ui/`)
 
-Non-travel questions are rejected.
+The assistant answers travel requests only (trip plans, recommendations, weather/cost context) and rejects non-travel questions.
 
-## 1. Project flow
+## Runtime flow
 
-The graph flow is:
-1. User sends input
-2. Chatbot validates if the request is travel-related
-3. Chatbot retrieves context from RAG and combines it with LLM reasoning
-4. Chatbot returns plan/recommendation only for travel topics
+1. Model analyzes user input and extracts travel fields (`is_travel_related`, `destination`, `days`, `budget`, `people`, request mode).
+2. If request is not travel-related, graph returns a rejection response.
+3. Graph queries Pinecone RAG by destination; if destination context exists, that context is used.
+4. If destination context is missing, graph continues with model internal knowledge.
+5. Weather API runs for the extracted destination.
+6. Cost calculator runs for the extracted destination/days/people/accommodation type.
+7. Synthesis combines parsed input + (optional) Pinecone context + weather + cost into final response.
 
-## 2. Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-- OpenAI API key
-- LangSmith API key (recommended for tracing/management)
-
-## 3. Setup backend
-
-From project root (`RAGPlan`):
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Create a `.env` file in project root:
-
-```env
-OPENAI_API_KEY=sk-...
-LANGSMITH_API_KEY=lsv2_...
-LANGSMITH_PROJECT=travel-chatbot
-LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-```
-
-Notes:
-- `LANGSMITH_PROJECT` controls where traces are grouped in LangSmith.
-- The app loads `.env` automatically from `app/config.py`.
-
-## 4. Run backend
-
-```bash
-python main.py
-```
-
-Backend URLs:
-- API root: `http://localhost:8000`
-- Swagger docs: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-Main endpoints:
-- `POST /travel-planner/invoke`
-- `POST /travel-planner/stream`
-- `POST /travel-planner/batch`
-- `GET /health`
-
-## 5. Manage and monitor in LangSmith
-
-1. Open `https://smith.langchain.com`
-2. Select/create the project named by `LANGSMITH_PROJECT`
-3. Run chatbot requests from UI or API
-4. Inspect traces for each run:
-   - validation result (travel/non-travel)
-   - RAG retrieval behavior
-   - final synthesis output
-5. Use traces to debug failures and prompt quality
-
-Operational tips:
-- Use a separate project name per environment (example: `travel-chatbot-dev`, `travel-chatbot-prod`)
-- Keep `LANGSMITH_API_KEY` in local `.env` only
-
-## 6. Run frontend
-
-In a new terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open:
-- `http://localhost:5173`
-
-The frontend sends requests to backend at `http://localhost:8000`.
-
-## 7. Use the chatbot
-
-Example travel prompts:
-- `Plan a 5-day trip to Tokyo with $2500 budget`
-- `Recommend places to visit in Bali for couples`
-- `Suggest a budget itinerary in Paris for 3 days`
-
-Expected behavior:
-- Travel requests: chatbot returns plan/recommendation
-- Non-travel requests: chatbot replies that it only supports travel topics
-
-## 8. Quick API test
-
-```bash
-curl -X POST http://localhost:8000/travel-planner/invoke ^
-  -H "Content-Type: application/json" ^
-  -d "{\"input\":{\"message\":\"Plan a 4-day trip to Tokyo with $2000\"}}"
-```
-
-## 9. Project structure
+## 1. Folder structure
 
 ```text
 RAGPlan/
 ├── app/
-│   ├── config.py       # env and LangSmith settings
-│   ├── graph.py        # LangGraph workflow
-│   ├── rag.py          # RAG retrieval logic/documents
-│   ├── tool.py         # parser, weather, cost tools
-│   └── server.py       # FastAPI + LangServe app
-├── frontend/           # React client
-├── main.py             # backend entrypoint
+│   ├── server.py               # Main FastAPI app (includes user/admin routers)
+│   ├── graph.py                # LangGraph workflow
+│   ├── rag.py                  # Pinecone-backed RAG storage and retrieval
+│   ├── tool.py                 # Weather/cost/parser helper tools
+│   ├── config.py               # .env loading + LangSmith/OpenAI settings
+│   ├── admin/                  # Admin APIs: knowledge, monitoring, config
+│   └── user/                   # User chat APIs
+├── user-ui/                    # End-user chat frontend (Vite + React)
+├── admin-ui/                   # Admin frontend for ingestion/listing docs
+├── scripts/
+│   └── test_user_api.py        # Quick API script for /user/chat/invoke
+├── langgraph.json
+├── pyproject.toml
 ├── requirements.txt
-└── langgraph.json
+└── vector_store.pkl            # Legacy local cache file (not used by Pinecone mode)
 ```
+
+## 2. Prerequisites
+
+- **Python 3.13+** (based on `pyproject.toml`)
+- **Node.js 18+** and npm
+- **OPENAI_API_KEY** (required)
+- **PINECONE_API_KEY** (required for RAG)
+- **LANGSMITH_API_KEY** (optional, for tracing)
+
+## 3. Environment setup
+
+Create `.env` in project root:
+
+```env
+OPENAI_API_KEY=sk-...
+PINECONE_API_KEY=pcsk_...
+PINECONE_INDEX_NAME=ragplan-travel
+PINECONE_NAMESPACE=travel-guides
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+PINECONE_EMBEDDING_MODEL=text-embedding-3-small
+LANGSMITH_API_KEY=lsv2_...                       # optional
+LANGSMITH_PROJECT=travel-chatbot                 # optional (default exists)
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+```
+
+`app/config.py` automatically loads `.env` on startup.
+
+## 4. Install dependencies
+
+### Backend (recommended: uv)
+
+```powershell
+uv sync
+```
+
+### Backend (pip alternative)
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+pip install fastapi langserve langchain-openai pinecone httpx uvicorn
+```
+
+### Frontends
+
+```powershell
+cd user-ui
+npm install
+cd ..\admin-ui
+npm install
+cd ..
+```
+
+## 5. Run the project
+
+Open **3 terminals** from repository root.
+
+### Terminal 1: Run backend (port 8000)
+
+If using uv:
+
+```powershell
+uv run uvicorn app.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+If using venv/pip:
+
+```powershell
+.venv\Scripts\activate
+python -m uvicorn app.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Terminal 2: Run user UI (port 5173)
+
+```powershell
+cd user-ui
+npm run dev -- --port 5173
+```
+
+Open: `http://localhost:5173`
+
+### Terminal 3: Run admin UI (port 5174)
+
+```powershell
+cd admin-ui
+npm run dev -- --port 5174
+```
+
+Open: `http://localhost:5174`
+
+## 6. URLs and key APIs
+
+### Backend URLs
+
+- API root: `http://localhost:8000/`
+- Swagger: `http://localhost:8000/docs`
+- Health: `http://localhost:8000/health`
+
+### User chat APIs
+
+- `POST /user/chat/invoke`
+- `POST /travel-planner/invoke`
+- `POST /travel-planner/stream`
+- `POST /travel-planner/batch`
+
+### Admin APIs
+
+- `GET /admin/knowledge/list`
+- `POST /admin/knowledge/ingest`
+- `POST /admin/knowledge/bulk-ingest`
+- `GET /admin/monitoring/status`
+- `GET /admin/config`
+- `PATCH /admin/config`
+
+## 7. Quick test commands
+
+### Test user endpoint (PowerShell)
+
+```powershell
+curl -X POST http://localhost:8000/user/chat/invoke `
+  -H "Content-Type: application/json" `
+  -d "{\"message\":\"Plan a 4-day trip to Tokyo with $2000 budget\",\"thread_id\":\"demo-thread-1\"}"
+```
+
+### Run provided API test script
+
+```powershell
+python scripts\test_user_api.py
+```
+
+## 8. How to use each UI
+
+### User UI (`http://localhost:5173`)
+
+- Send travel prompts (itinerary/recommendations).
+- The UI calls `POST /user/chat/invoke`.
+
+### Admin UI (`http://localhost:5174`)
+
+- View existing knowledge docs.
+- Upload `.txt` files to ingest new knowledge (`POST /admin/knowledge/ingest`).
+- Destination is derived from filename in current UI implementation.
+
+## 9. Notes and troubleshooting
+
+- Both UIs are hardcoded to call backend at `http://localhost:8000`.
+- RAG documents are stored in Pinecone index/namespace configured in `.env`.
+- LangSmith tracing is enabled only when `LANGSMITH_API_KEY` is set.
+- If ports are already occupied, free them or run with different ports and update frontend API URLs accordingly.

@@ -1,10 +1,15 @@
-from typing import List, Dict, Tuple
-from langchain_core.documents import Document
-from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
-import pickle
+from __future__ import annotations
+
 import logging
-import os
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+from pinecone import Pinecone, ServerlessSpec
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -147,146 +152,288 @@ NYC never sleeps! The city that never sleeps is home to world-class museums, ico
 """,
 }
 
+
 class TravelRAG:
     def __init__(self):
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        self.db_path = "vector_store.pkl"
-        self.docs = self._create_documents()
-        self.vector_store = self._load_db()
+        self.embedding_model = settings.PINECONE_EMBEDDING_MODEL
+        self.embedding_dimension = 1536  # text-embedding-3-small
+        self.embeddings = OpenAIEmbeddings(
+            model=self.embedding_model,
+            api_key=settings.OPENAI_API_KEY,
+        )
+        self.namespace = settings.PINECONE_NAMESPACE
+        self.index_name = settings.PINECONE_INDEX_NAME
+        self.enabled = bool(settings.PINECONE_API_KEY)
+        self.connected = False
+        self.index = None
 
-    def _create_documents(self) -> List[Document]:
-        """Convert travel documents to LangChain documents."""
-        docs = []
-        for destination, content in travel_documents.items():
-            doc = Document(
-                page_content=content,
-                metadata={"destination": destination, "source": "travel_guide"}
+        if self.enabled:
+            if not settings.OPENAI_API_KEY:
+                raise RuntimeError("OPENAI_API_KEY is required for embedding model text-embedding-3-small.")
+            try:
+                self.index = self._init_pinecone_index()
+                self._verify_connection()
+                self._bootstrap_default_documents()
+            except Exception as exc:
+                raise RuntimeError(f"Failed to initialize Pinecone RAG: {exc}") from exc
+        else:
+            logger.warning("PINECONE_API_KEY is not set. RAG retrieval from Pinecone is disabled.")
+
+    def _init_pinecone_index(self):
+        pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+        index_listing = pc.list_indexes()
+        if hasattr(index_listing, "names"):
+            existing_indexes = set(index_listing.names())
+        else:
+            existing_indexes = {
+                index.get("name")
+                for index in index_listing
+                if isinstance(index, dict) and index.get("name")
+            }
+
+        def _describe_dimension(index_name: str) -> int | None:
+            index_config = pc.describe_index(index_name)
+            current_dimension = getattr(index_config, "dimension", None)
+            if current_dimension is None and isinstance(index_config, dict):
+                current_dimension = index_config.get("dimension")
+            return int(current_dimension) if current_dimension else None
+
+        def _create_index(index_name: str):
+            pc.create_index(
+                name=index_name,
+                dimension=self.embedding_dimension,
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud=settings.PINECONE_CLOUD,
+                    region=settings.PINECONE_REGION,
+                ),
             )
-            docs.append(doc)
+            logger.info("Created Pinecone index '%s'", index_name)
+
+        if self.index_name not in existing_indexes:
+            _create_index(self.index_name)
+        else:
+            current_dimension = _describe_dimension(self.index_name)
+            if current_dimension and current_dimension != self.embedding_dimension:
+                compatible_index_name = f"{self.index_name}-{self.embedding_dimension}"
+                logger.warning(
+                    "Index '%s' has dimension=%s, incompatible with model '%s' (needs %s). "
+                    "Switching to '%s'.",
+                    self.index_name,
+                    current_dimension,
+                    self.embedding_model,
+                    self.embedding_dimension,
+                    compatible_index_name,
+                )
+
+                if compatible_index_name not in existing_indexes:
+                    _create_index(compatible_index_name)
+                else:
+                    compatible_dimension = _describe_dimension(compatible_index_name)
+                    if compatible_dimension and compatible_dimension != self.embedding_dimension:
+                        raise ValueError(
+                            f"Pinecone index '{compatible_index_name}' has dimension={compatible_dimension}, "
+                            f"but embedding model '{self.embedding_model}' requires dimension={self.embedding_dimension}. "
+                            "Please set a fresh PINECONE_INDEX_NAME."
+                        )
+                self.index_name = compatible_index_name
+        return pc.Index(self.index_name)
+
+    def _verify_connection(self):
+        if self.index is None:
+            raise RuntimeError("Pinecone index client is not initialized.")
+        self.index.describe_index_stats()
+        self.connected = True
+        logger.info(
+            "Connected to Pinecone index='%s' namespace='%s' embedding_model='%s'",
+            self.index_name,
+            self.namespace,
+            self.embedding_model,
+        )
+
+    def _embed_query(self, text: str) -> list[float]:
+        return self.embeddings.embed_query(text)
+
+    def _upsert_document(self, doc_id: str, text: str, metadata: dict[str, Any]):
+        if not self.enabled or self.index is None:
+            return
+        payload_metadata = metadata.copy()
+        payload_metadata["content"] = text
+        self.index.upsert(
+            vectors=[
+                {
+                    "id": doc_id,
+                    "values": self._embed_query(text),
+                    "metadata": payload_metadata,
+                }
+            ],
+            namespace=self.namespace,
+        )
+
+    def _bootstrap_default_documents(self):
+        for destination, content in travel_documents.items():
+            doc_id = f"seed:{destination}"
+            metadata = {
+                "doc_id": doc_id,
+                "destination": destination.lower(),
+                "category": "travel_guide",
+                "source": "seed",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "tags": ["default_seed"],
+            }
+            self._upsert_document(doc_id, content, metadata)
+
+    def _vector_to_document(self, vector: Any) -> Document:
+        if isinstance(vector, dict):
+            metadata = vector.get("metadata", {}) or {}
+            vector_id = vector.get("id", "unknown")
+        else:
+            metadata = getattr(vector, "metadata", {}) or {}
+            vector_id = getattr(vector, "id", "unknown")
+
+        content = metadata.get("content", "")
+        if not metadata.get("doc_id"):
+            metadata["doc_id"] = vector_id
+        return Document(page_content=content, metadata=metadata)
+
+    def _extract_matches(self, query_result: dict[str, Any]) -> list[Document]:
+        matches = query_result.get("matches", []) if isinstance(query_result, dict) else getattr(query_result, "matches", [])
+        docs: list[Document] = []
+        for match in matches:
+            metadata = match.get("metadata", {}) if isinstance(match, dict) else getattr(match, "metadata", {}) or {}
+            match_id = match.get("id", "") if isinstance(match, dict) else getattr(match, "id", "")
+            if metadata.get("content"):
+                metadata.setdefault("doc_id", metadata.get("doc_id", match_id))
+                docs.append(Document(page_content=metadata["content"], metadata=metadata))
         return docs
 
-    def _score_document(self, query: str, content: str) -> int:
-        """Simple lexical score based on shared words between query and content."""
-        query_tokens = {token.strip(".,!?()[]{}:;\"'").lower() for token in query.split() if token.strip()}
-        if not query_tokens:
-            return 0
+    def query_documents(self, query: str, k: int = 3, destination: str | None = None) -> list[Document]:
+        if not self.enabled or not self.connected or self.index is None:
+            return []
 
-        content_tokens = {token.strip(".,!?()[]{}:;\"'").lower() for token in content.split() if token.strip()}
-        return len(query_tokens.intersection(content_tokens))
+        query_filter = None
+        if destination:
+            query_filter = {"destination": {"$eq": destination.lower()}}
+
+        result = self.index.query(
+            vector=self._embed_query(query),
+            top_k=k,
+            include_metadata=True,
+            namespace=self.namespace,
+            filter=query_filter,
+        )
+        return self._extract_matches(result)
 
     def retrieve(self, query: str, k: int = 2) -> str:
-        """Retrieve relevant travel documents for a query."""
-        try:
-            logger.info(f"RAG Retrieval: Query = '{query}'")
-            scored_docs: List[Tuple[int, Document]] = []
-            for doc in self.docs:
-                score = self._score_document(query, doc.page_content)
-                scored_docs.append((score, doc))
-                logger.debug(f"   Document '{doc.metadata['destination']}': score={score}")
+        docs = self.query_documents(query, k=k)
+        if not docs:
+            return "No travel documents found."
+        return "\n\n".join(doc.page_content for doc in docs)[:2000]
 
-            results = [doc for score, doc in sorted(scored_docs, key=lambda item: item[0], reverse=True)[:k] if score > 0]
-            if not results:
-                logger.warning(f" No documents found for query: {query}")
-                return "No travel documents found for this destination."
+    def retrieve_by_destination(self, destination: str, k: int = 3) -> str:
+        docs = self.query_documents(destination, k=k, destination=destination)
+        if not docs:
+            return ""
+        return "\n\n".join(doc.page_content for doc in docs)[:2000]
 
-            logger.info(f"Retrieved {len(results)} documents: {[doc.metadata['destination'] for doc in results]}")
-            content = "\n\n".join([doc.page_content for doc in results])
-            return content[:1500]
-        except Exception as e:
-            logger.error(f"RAG Error: {str(e)}")
-            return f"Error retrieving documents: {str(e)}"
+    def retrieve_destination_context(self, *, destination: str, query: str, k: int = 3) -> tuple[str, bool]:
+        docs = self.query_documents(query=query, k=k, destination=destination)
+        if not docs:
+            return "", False
+        return "\n\n".join(doc.page_content for doc in docs)[:2000], True
 
-    def retrieve_by_destination(self, destination: str) -> str:
-        """Retrieve travel guide for specific destination."""
-        destination_lower = destination.lower()
-        for key, content in travel_documents.items():
-            if key in destination_lower or destination_lower in key:
-                return content[:1000]
-        return travel_documents.get("paris", "No guide available.")[:1000]
-
-    def _load_db(self):
-        """Tải database từ file nếu tồn tại, nếu không tạo mới từ docs mặc định."""
-        if os.path.exists(self.db_path):
-            try:
-                with open(self.db_path, "rb") as f:
-                    return pickle.load(f)
-            except Exception as e:
-                logger.error(f"Lỗi khi tải vector store: {e}")
-        
-        # Tạo mới từ các tài liệu mặc định nếu không có file lưu trữ
-        return InMemoryVectorStore.from_documents(self.docs, self.embeddings)
-     
-    def add_knowledge(self, text: str, metadata: dict) -> str:
-        """Thêm kiến thức mới vào vector store.
-
-        Args:
-            text: Nội dung tài liệu.
-            metadata: Metadata đi kèm (destination, category, tags, ...).
-
-        Returns:
-            doc_id (UUID string) của tài liệu vừa tạo.
-        """
-        import uuid
-        from datetime import datetime, timezone
-
+    def add_knowledge(self, text: str, metadata: dict[str, Any]) -> str:
+        if not self.enabled:
+            raise RuntimeError("Pinecone RAG is disabled. Set PINECONE_API_KEY to enable knowledge ingestion.")
         doc_id = str(uuid.uuid4())
-        metadata["doc_id"] = doc_id
-        metadata["created_at"] = datetime.now(timezone.utc).isoformat()
-        metadata.setdefault("source", "admin_upload")
-
-        doc = Document(page_content=text, metadata=metadata)
-        self.docs.append(doc)
-        self.vector_store.add_texts([text], metadatas=[metadata])
-        self._persist()
-        logger.info(f"Đã thêm kiến thức mới: doc_id={doc_id}, destination={metadata.get('destination')}")
+        full_metadata = metadata.copy()
+        full_metadata["doc_id"] = doc_id
+        full_metadata["destination"] = full_metadata.get("destination", "unknown").lower()
+        full_metadata.setdefault("category", "travel_guide")
+        full_metadata.setdefault("source", "admin_upload")
+        full_metadata.setdefault("tags", [])
+        full_metadata["created_at"] = datetime.now(timezone.utc).isoformat()
+        self._upsert_document(doc_id, text, full_metadata)
         return doc_id
 
-    def get_all_documents(self) -> List[Document]:
-        """Trả về toàn bộ danh sách documents."""
-        return self.docs
+    def get_all_documents(self) -> list[Document]:
+        if not self.enabled or not self.connected or self.index is None:
+            return []
+
+        try:
+            listed = self.index.list(namespace=self.namespace)
+            ids: list[str] = []
+            for item in listed:
+                if isinstance(item, str):
+                    ids.append(item)
+                    continue
+                if isinstance(item, dict):
+                    if "id" in item:
+                        ids.append(item["id"])
+                    elif "ids" in item:
+                        ids.extend(item["ids"])
+                    continue
+                item_ids = getattr(item, "ids", None)
+                if item_ids:
+                    ids.extend(item_ids)
+
+            if not ids:
+                return []
+
+            docs: list[Document] = []
+            batch_size = 100
+            for i in range(0, len(ids), batch_size):
+                batch = ids[i : i + batch_size]
+                fetched = self.index.fetch(ids=batch, namespace=self.namespace)
+                vectors = fetched.get("vectors", {}) if isinstance(fetched, dict) else getattr(fetched, "vectors", {}) or {}
+                for vector in vectors.values():
+                    docs.append(self._vector_to_document(vector))
+            return docs
+        except Exception as exc:
+            logger.error("Failed to list documents from Pinecone: %s", exc)
+            return []
 
     def get_document_by_id(self, doc_id: str) -> Document | None:
-        """Tìm document theo doc_id trong metadata."""
-        for doc in self.docs:
-            if doc.metadata.get("doc_id") == doc_id:
-                return doc
-        return None
+        if not self.enabled or not self.connected or self.index is None:
+            return None
+        fetched = self.index.fetch(ids=[doc_id], namespace=self.namespace)
+        vectors = fetched.get("vectors", {}) if isinstance(fetched, dict) else getattr(fetched, "vectors", {}) or {}
+        vector = vectors.get(doc_id)
+        if not vector:
+            return None
+        return self._vector_to_document(vector)
 
-    def rebuild_vector_store(self):
-        """Rebuild toàn bộ vector store từ self.docs và persist lại.
+    def update_knowledge(self, doc_id: str, text: str, metadata: dict[str, Any]) -> Document:
+        if not self.enabled:
+            raise RuntimeError("Pinecone RAG is disabled. Set PINECONE_API_KEY to enable knowledge updates.")
+        full_metadata = metadata.copy()
+        full_metadata["doc_id"] = doc_id
+        full_metadata["destination"] = full_metadata.get("destination", "unknown").lower()
+        full_metadata.setdefault("category", "travel_guide")
+        full_metadata.setdefault("source", "admin_upload")
+        full_metadata.setdefault("tags", [])
+        full_metadata.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+        self._upsert_document(doc_id, text, full_metadata)
+        return Document(page_content=text, metadata=full_metadata)
 
-        Dùng khi cập nhật nội dung document (xóa doc cũ, thêm doc mới).
-        """
-        self.vector_store = InMemoryVectorStore.from_documents(self.docs, self.embeddings)
-        self._persist()
-        logger.info(f"Đã rebuild vector store với {len(self.docs)} documents")
-
-    def get_stats(self) -> dict:
-        """Trả về thống kê tổng quan về knowledge base."""
-        destinations = {}
-        for doc in self.docs:
-            dest = doc.metadata.get("destination", "unknown")
-            destinations[dest] = destinations.get(dest, 0) + 1
-
-        file_size_kb = 0.0
-        if os.path.exists(self.db_path):
-            file_size_kb = os.path.getsize(self.db_path) / 1024
+    def get_stats(self) -> dict[str, Any]:
+        docs = self.get_all_documents()
+        destinations: dict[str, int] = {}
+        for doc in docs:
+            destination = doc.metadata.get("destination", "unknown")
+            destinations[destination] = destinations.get(destination, 0) + 1
 
         return {
-            "total_documents": len(self.docs),
-            "destinations_covered": list(destinations.keys()),
+            "vector_store_type": "Pinecone",
+            "pinecone_index": self.index_name,
+            "namespace": self.namespace,
+            "enabled": self.enabled,
+            "connected": self.connected,
+            "embedding_model": self.embedding_model,
+            "total_documents": len(docs),
+            "destinations_covered": sorted(destinations.keys()),
             "docs_by_destination": destinations,
-            "persistence_file": self.db_path,
-            "persistence_file_size_kb": round(file_size_kb, 2),
         }
 
-    def _persist(self):
-        """Lưu vector store xuống file pickle."""
-        try:
-            with open(self.db_path, "wb") as f:
-                pickle.dump(self.vector_store, f)
-            logger.info(f"Đã lưu vector store vào {self.db_path}")
-        except Exception as e:
-            logger.error(f"Không thể lưu file database: {e}")
 
 rag = TravelRAG()
