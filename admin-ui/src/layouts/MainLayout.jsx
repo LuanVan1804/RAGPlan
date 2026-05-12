@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 
 const MainLayout = ({ children, activePage, setActivePage }) => {
@@ -17,12 +16,6 @@ const MainLayout = ({ children, activePage, setActivePage }) => {
           {children}
         </div>
       </main>
-      
-      {/* Floating Help / Feedback */}
-      <button className="fixed bottom-8 right-8 w-14 h-14 bg-white dark:bg-surface-800 text-slate-900 dark:text-white rounded-2xl flex items-center justify-center shadow-2xl border border-slate-200 dark:border-slate-700 hover:shadow-primary-500/20 hover:-translate-y-1 transition-all group z-50">
-        <div className="absolute inset-0 bg-primary-500/10 rounded-2xl scale-0 group-hover:scale-100 transition-transform duration-300" />
-        <span className="text-xl font-bold relative z-10 group-hover:text-primary-500 transition-colors">?</span>
-      </button>
     </div>
   );
 };

@@ -1,9 +1,9 @@
-import React from 'react';
-import { Upload, FileText, User, LayoutDashboard } from 'lucide-react';
+import { FileText, User, LayoutDashboard, Plus } from 'lucide-react';
 
 const Sidebar = ({ activePage, setActivePage }) => {
   const menuItems = [
-    { id: 'documents', name: 'Knowledge Base', icon: FileText },
+    { id: 'add-documents', name: 'Thêm tài liệu', icon: Plus},
+    { id: 'documents', name: 'Quản lý tài liệu', icon: FileText },
   ];
 
   return (
@@ -39,23 +39,7 @@ const Sidebar = ({ activePage, setActivePage }) => {
             </button>
           );
         })}
-      </nav>
-
-      {/* Profile */}
-      <div className="p-6 border-t border-surface-900 bg-surface-950/50 backdrop-blur-sm">
-        <div className="flex items-center space-x-4 p-3 rounded-2xl hover:bg-surface-900/50 transition-all cursor-pointer group">
-          <div className="relative">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-surface-800 to-surface-700 flex items-center justify-center text-lg font-bold border border-surface-600 group-hover:border-primary-500/50 transition-colors">
-              <User size={20} className="text-surface-300 group-hover:text-primary-400 transition-colors" />
-            </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-surface-950 rounded-full" />
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-bold text-white group-hover:text-primary-400 transition-colors truncate">Khoa Admin</p>
-            <p className="text-[11px] text-surface-500 font-medium truncate">System Administrator</p>
-          </div>
-        </div>
-      </div>
+      </nav> 
     </div>
   );
 };

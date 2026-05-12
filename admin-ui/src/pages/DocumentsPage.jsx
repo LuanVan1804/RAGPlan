@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import DocumentTable from '../components/DocumentTable';
 import UploadCard from '../components/UploadCard';
-import { RefreshCw, Search, Plus, X, database } from 'lucide-react';
+import { RefreshCw, Search, Plus, X} from 'lucide-react';
 
 const DocumentsPage = () => {
   const [documents, setDocuments] = useState([]);
@@ -10,26 +10,31 @@ const DocumentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showUpload, setShowUpload] = useState(false);
 
-  const fetchDocuments = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('http://localhost:8000/admin/knowledge/list');
-      setDocuments(response.data.documents);
-    } catch (error) {
-      console.error("Failed to fetch documents:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+   const fetchDocuments = useCallback(async () => {
+     setLoading(true);
+     try {
+       const response = await axios.get('http://localhost:8000/admin/knowledge/list');
+       setDocuments(Array.isArray(response.data?.documents) ? response.data.documents : []);
+     } catch (error) {
+       console.error("Failed to fetch documents:", error);
+       setDocuments([]); // Đảm bảo documents là mảng rỗng khi có lỗi
+     } finally {
+       setLoading(false);
+     }
+   }, []);
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
-  const filteredDocs = documents.filter(doc => 
-    doc.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.preview.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+   const filteredDocs = useMemo(() => {
+     const lowerSearchTerm = searchTerm.toLowerCase();
+     return documents.filter(doc => 
+       (doc.name && doc.name.toLowerCase().includes(lowerSearchTerm)) ||
+       (doc.destination && doc.destination.toLowerCase().includes(lowerSearchTerm)) ||
+       (doc.preview && doc.preview.toLowerCase().includes(lowerSearchTerm))
+     );
+   }, [documents, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -37,10 +42,10 @@ const DocumentsPage = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Knowledge <span className="text-primary-500">Base</span>
+            Quản lý <span className="text-primary-500">Tài liệu</span>
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-            Manage and monitor your RAG system's core knowledge.
+            Quản lý kho tri thức cốt lõi của hệ thống RAG.
           </p>
         </div>
         
@@ -54,13 +59,13 @@ const DocumentsPage = () => {
             }`}
           >
             {showUpload ? <X size={18} /> : <Plus size={18} />}
-            <span>{showUpload ? 'Cancel' : 'Add Knowledge'}</span>
+            <span>{showUpload ? 'Hủy' : 'Thêm nhanh'}</span>
           </button>
           
           <button 
             onClick={fetchDocuments}
             className="p-3 bg-white dark:bg-surface-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-700 text-slate-600 dark:text-slate-300 transition-all shadow-sm"
-            title="Refresh Knowledge"
+            title="Tải lại danh sách"
           >
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -79,7 +84,7 @@ const DocumentsPage = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             type="text"
-            placeholder="Search documents..."
+            placeholder="Tìm kiếm tài liệu..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-white dark:bg-surface-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all shadow-sm dark:text-white"
@@ -87,10 +92,6 @@ const DocumentsPage = () => {
         </div>
         
         <div className="flex items-center space-x-6 text-sm font-bold text-slate-400">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-            <span>Vector Store: Active</span>
-          </div>
           <div className="flex items-center space-x-2">
             <span className="text-slate-900 dark:text-slate-200">{documents.length}</span>
             <span>Documents</span>
@@ -101,15 +102,6 @@ const DocumentsPage = () => {
       {/* Main Table */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         <DocumentTable documents={filteredDocs} loading={loading} />
-      </div>
-
-      {/* Footer Info */}
-      <div className="flex items-center justify-center py-6">
-        <div className="flex items-center space-x-2 px-4 py-2 bg-slate-100 dark:bg-surface-800/50 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200/50 dark:border-slate-700/50">
-          <span>Engine: RAG-PRO</span>
-          <span className="opacity-30">|</span>
-          <span>Storage: Local Vector Cache</span>
-        </div>
       </div>
     </div>
   );

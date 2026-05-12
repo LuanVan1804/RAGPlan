@@ -1,5 +1,4 @@
-import React from 'react';
-import { Calendar, MapPin, Tag, MoreVertical, ExternalLink, FileText, Search } from 'lucide-react';
+import { Calendar, MapPin, MoreVertical, ExternalLink, FileText} from 'lucide-react';
 
 const DocumentTable = ({ documents, loading }) => {
   if (loading) {
