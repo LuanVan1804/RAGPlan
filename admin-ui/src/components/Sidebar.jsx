@@ -2,8 +2,8 @@ import { FileText, User, LayoutDashboard, Plus } from 'lucide-react';
 
 const Sidebar = ({ activePage, setActivePage }) => {
   const menuItems = [
-    { id: 'add-documents', name: 'Add Knowledge', icon: Plus},
-    { id: 'documents', name: 'Knowledge Base', icon: FileText },
+    { id: 'add-documents', name: 'Thêm tài liệu', icon: Plus},
+    { id: 'documents', name: 'Quản lý tài liệu', icon: FileText },
   ];
 
   return (

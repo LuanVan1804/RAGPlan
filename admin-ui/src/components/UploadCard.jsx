@@ -79,8 +79,8 @@ const UploadCard = () => {
     <div className="card-premium p-6 w-full mx-auto mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Upload Knowledge</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Ingest new documents into the RAG system.</p>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Tài liệu</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Nạp tài liệu mới vào hệ thống RAG.</p>
         </div>
         <div className="p-1.5 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
           <Info size={16} className="text-primary-500" />
@@ -115,13 +115,13 @@ const UploadCard = () => {
         <div className="text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white mb-1">
             {file ? (
-              <span className="text-primary-600 dark:text-primary-400">Selected: {file.name}</span>
+              <span className="text-primary-600 dark:text-primary-400">Đã chọn: {file.name}</span>
             ) : (
-              "Drop your file here"
+              "Kéo thả file vào đây"
             )}
           </p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-6">
-            Only .txt files are supported for now.
+            Hệ thống hiện tại chỉ hỗ trợ file .txt.
           </p>
         </div>
 
@@ -130,7 +130,7 @@ const UploadCard = () => {
             onClick={onButtonClick}
             className="px-6 py-2 bg-slate-900 dark:bg-primary-600 text-white rounded-lg text-sm font-bold shadow-xl hover:shadow-primary-500/20 hover:-translate-y-0.5 transition-all active:scale-95"
           >
-            Browse Files
+            Chọn từ máy tính
           </button>
         )}
 
@@ -162,7 +162,7 @@ const UploadCard = () => {
                 onClick={handleUpload}
                 className="px-6 py-3 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 shadow-lg shadow-primary-900/20 transition-all"
               >
-                Confirm & Process
+                Xác nhận & Tải lên
               </button>
             </div>
           </div>
@@ -175,8 +175,8 @@ const UploadCard = () => {
             <div className="absolute inset-0 border-4 border-primary-200 dark:border-primary-900 rounded-full" />
             <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin" />
           </div>
-          <span className="text-slate-900 dark:text-white font-bold">Processing Knowledge...</span>
-          <p className="text-xs text-slate-500 mt-2">Vectorizing and indexing for RAG engine</p>
+          <span className="text-slate-900 dark:text-white font-bold">Đang xử lý tài liệu...</span>
+          <p className="text-xs text-slate-500 mt-2">Đang vector hóa và lập chỉ mục cho RAG engine</p>
         </div>
       )}
 
@@ -186,8 +186,8 @@ const UploadCard = () => {
             <CheckCircle size={24} />
           </div>
           <div>
-            <p className="font-bold">Success!</p>
-            <p className="text-sm opacity-90">Knowledge has been successfully ingested into the system.</p>
+            <p className="font-bold">Thành công!</p>
+            <p className="text-sm opacity-90">Tài liệu đã được nạp thành công vào hệ thống.</p>
           </div>
         </div>
       )}
@@ -198,8 +198,8 @@ const UploadCard = () => {
             <AlertCircle size={24} />
           </div>
           <div>
-            <p className="font-bold">Upload Failed</p>
-            <p className="text-sm opacity-90">There was an error processing your file. Please check the backend.</p>
+            <p className="font-bold">Tải lên thất bại</p>
+            <p className="text-sm opacity-90">Có lỗi xảy ra trong quá trình xử lý. Vui lòng kiểm tra lại backend.</p>
           </div>
         </div>
       )}

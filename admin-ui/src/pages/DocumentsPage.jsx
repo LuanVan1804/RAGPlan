@@ -42,10 +42,10 @@ const DocumentsPage = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Knowledge <span className="text-primary-500">Base</span>
+            Quản lý <span className="text-primary-500">Tài liệu</span>
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-            Manage RAG system's core knowledge.
+            Quản lý kho tri thức cốt lõi của hệ thống RAG.
           </p>
         </div>
         
@@ -59,13 +59,13 @@ const DocumentsPage = () => {
             }`}
           >
             {showUpload ? <X size={18} /> : <Plus size={18} />}
-            <span>{showUpload ? 'Cancel' : 'Add Knowledge'}</span>
+            <span>{showUpload ? 'Hủy' : 'Thêm nhanh'}</span>
           </button>
           
           <button 
             onClick={fetchDocuments}
             className="p-3 bg-white dark:bg-surface-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-700 text-slate-600 dark:text-slate-300 transition-all shadow-sm"
-            title="Refresh Knowledge"
+            title="Tải lại danh sách"
           >
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -84,7 +84,7 @@ const DocumentsPage = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             type="text"
-            placeholder="Search documents..."
+            placeholder="Tìm kiếm tài liệu..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-white dark:bg-surface-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all shadow-sm dark:text-white"
