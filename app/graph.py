@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from typing import TypedDict, Any, Literal
 from langchain_openai import ChatOpenAI
 from app.config import settings
@@ -43,7 +44,7 @@ def normalize_input_node(state: dict) -> dict:
 
 def validation_node(state: TravelPlanState) -> dict:
     """Check if question is travel-related."""
-    logger.info(f"🔍 [validation_node] Checking if travel-related: {state['user_input']}")
+    logger.info(f"[validation_node] Checking if travel-related: {state['user_input']}")
 
     lowered = state["user_input"].lower()
     travel_keywords = {
@@ -71,10 +72,10 @@ Examples:
     response_text = _as_text(response).upper()
 
     is_travel = keyword_match or ("YES" in response_text)
-    logger.info(f"✅ [validation_node] Result: {'TRAVEL RELATED' if is_travel else 'NOT TRAVEL RELATED'}")
+    logger.info(f"[validation_node] Result: {'TRAVEL RELATED' if is_travel else 'NOT TRAVEL RELATED'}")
 
     if not is_travel:
-        rejection = "❌ Sorry, I can only help with travel-related requests. Please ask me about travel planning, destinations, accommodations, weather, or activities."
+        rejection = "Sorry, I can only help with travel-related requests. Please ask me about travel planning, destinations, accommodations, weather, or activities."
         return {
             "is_travel_related": False,
             "rejection_reason": rejection,
@@ -86,17 +87,17 @@ Examples:
 def routing_node(state: TravelPlanState) -> Literal["process_request", "reject_request"]:
     """Route based on validation result."""
     if state["is_travel_related"]:
-        logger.info("➡️  [routing] Routing to: process_request")
+        logger.info("[routing] Routing to: process_request")
         return "process_request"
     else:
-        logger.info("➡️  [routing] Routing to: reject_request")
+        logger.info("[routing] Routing to: reject_request")
         return "reject_request"
 
 def input_node(state: TravelPlanState) -> dict:
     """Parse and validate user input."""
-    logger.info(f"🔄 [input_node] Processing: {state['user_input']}")
+    logger.info(f"[input_node] Processing: {state['user_input']}")
     parsed = parse_user_query(state["user_input"])
-    logger.info(f"✅ [input_node] Parsed: dest={parsed['destination']}, days={parsed['days']}, budget=${parsed['budget']}")
+    logger.info(f"[input_node] Parsed: dest={parsed['destination']}, days={parsed['days']}, budget=${parsed['budget']}")
     return {"parsed_query": parsed}
 
 def request_mode_node(state: TravelPlanState) -> dict:
@@ -104,23 +105,23 @@ def request_mode_node(state: TravelPlanState) -> dict:
     lowered = state["user_input"].lower()
     recommendation_signals = {"recommend", "suggest", "idea", "ideas", "where should", "best place"}
     mode = "recommendation" if any(signal in lowered for signal in recommendation_signals) else "plan"
-    logger.info(f"✅ [request_mode_node] Mode: {mode}")
+    logger.info(f"[request_mode_node] Mode: {mode}")
     return {"request_mode": mode}
 
 def rag_node(state: TravelPlanState) -> dict:
     """Retrieve travel documents for the destination."""
-    logger.info("🔄 [rag_node] Retrieving travel documents...")
+    logger.info("[rag_node] Retrieving travel documents...")
     query = state["user_input"]
     destination = state["parsed_query"]["destination"]
     lexical_docs = rag.retrieve(query, k=2)
     destination_docs = rag.retrieve_by_destination(destination)
     docs = f"{destination_docs}\n\n{lexical_docs}".strip()
-    logger.info(f"✅ [rag_node] Retrieved {len(docs)} chars of travel guide for {destination}")
+    logger.info(f"[rag_node] Retrieved {len(docs)} chars of travel guide for {destination}")
     return {"travel_docs": docs}
 
 def weather_node(state: TravelPlanState) -> dict:
     """Fetch weather forecast for destination."""
-    logger.info("🔄 [weather_node] Fetching weather forecast...")
+    logger.info("[weather_node] Fetching weather forecast...")
     destination = state["parsed_query"]["destination"]
     days = state["parsed_query"]["days"]
 
@@ -129,12 +130,12 @@ def weather_node(state: TravelPlanState) -> dict:
     end_date = (today + timedelta(days=days)).strftime("%Y-%m-%d")
 
     weather = get_weather(destination, start_date, end_date)
-    logger.info(f"✅ [weather_node] Weather status: {weather.get('status', 'unknown')}")
+    logger.info(f"[weather_node] Weather status: {weather.get('status', 'unknown')}")
     return {"weather_info": weather}
 
 def calculation_node(state: TravelPlanState) -> dict:
     """Calculate trip costs."""
-    logger.info("🔄 [calculation_node] Calculating trip costs...")
+    logger.info("[calculation_node] Calculating trip costs...")
     parsed = state["parsed_query"]
 
     cost = calculate_trip_cost(
@@ -143,12 +144,12 @@ def calculation_node(state: TravelPlanState) -> dict:
         num_people=parsed["people"],
         accommodation_type=parsed["accommodation_type"]
     )
-    logger.info(f"✅ [calculation_node] Total cost: ${cost['total']}")
+    logger.info(f"[calculation_node] Total cost: ${cost['total']}")
     return {"cost_estimate": cost}
 
 def synthesis_node(state: TravelPlanState) -> dict:
     """Combine all data into final travel answer."""
-    logger.info("🔄 [synthesis_node] Synthesizing final travel answer...")
+    logger.info("[synthesis_node] Synthesizing final travel answer...")
     prompt = f"""You are a travel assistant.
 Only answer travel topics.
 Use the travel documents as your primary source and supplement with general travel knowledge.
@@ -183,18 +184,21 @@ Always include concise budget and packing guidance."""
     })
 
     final_answer = f"{formatted_plan}\n\n{plan_text}"
-    logger.info(f"✅ [synthesis_node] Final answer created ({len(final_answer)} chars)")
+    logger.info(f"[synthesis_node] Final answer created ({len(final_answer)} chars)")
     return {"final_plan": final_answer}
 
 def reject_node(state: TravelPlanState) -> dict:
     """Reject non-travel related requests."""
-    logger.info("❌ [reject_node] Rejecting non-travel request")
+    logger.info("[reject_node] Rejecting non-travel request")
     return {
-        "final_plan": "❌ Sorry, I can only help with travel-related requests. Please ask me about travel planning, destinations, accommodations, weather, or activities."
+        "final_plan": "Sorry, I can only help with travel-related requests. Please ask me about travel planning, destinations, accommodations, weather, or activities."
     }
 
 def build_graph():
     """Build the LangGraph workflow with proper state management."""
+    # Initialize memory checkpointer
+    memory = MemorySaver()
+    
     graph = StateGraph(TravelPlanState)
 
     # Add nodes
@@ -233,6 +237,7 @@ def build_graph():
     graph.add_edge("synthesis", END)
     graph.add_edge("reject", END)
 
-    return graph.compile()
+    # Compile with checkpointer
+    return graph.compile(checkpointer=memory)
 
 graph = build_graph()

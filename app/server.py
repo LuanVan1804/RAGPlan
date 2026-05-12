@@ -5,6 +5,7 @@ from app.graph import graph
 from app.config import settings
 from langchain_core.runnables import RunnableLambda
 from app.admin import admin_router
+from app.user import user_router
 
 app = FastAPI(
     title="Travel Plan Chatbot",
@@ -43,9 +44,10 @@ add_routes(
     enable_feedback_endpoint=True,
     enable_public_trace_link_endpoint=True
 )
-
 # --- Admin routes (public, không cần đăng nhập) ---
 app.include_router(admin_router)
+# --- User routes (public, không cần đăng nhập) ---
+app.include_router(user_router)
 
 @app.get("/")
 async def root():
