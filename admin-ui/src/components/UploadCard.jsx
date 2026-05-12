@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { UploadCloud, File, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import axios from 'axios';
 

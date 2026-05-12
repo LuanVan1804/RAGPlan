@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import DocumentTable from '../components/DocumentTable';
 import UploadCard from '../components/UploadCard';
-import { RefreshCw, Search, Plus, X, database } from 'lucide-react';
+import { RefreshCw, Search, Plus, X} from 'lucide-react';
 
 const DocumentsPage = () => {
   const [documents, setDocuments] = useState([]);
@@ -10,26 +10,31 @@ const DocumentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showUpload, setShowUpload] = useState(false);
 
-  const fetchDocuments = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('http://localhost:8000/admin/knowledge/list');
-      setDocuments(response.data.documents);
-    } catch (error) {
-      console.error("Failed to fetch documents:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+   const fetchDocuments = useCallback(async () => {
+     setLoading(true);
+     try {
+       const response = await axios.get('http://localhost:8000/admin/knowledge/list');
+       setDocuments(Array.isArray(response.data?.documents) ? response.data.documents : []);
+     } catch (error) {
+       console.error("Failed to fetch documents:", error);
+       setDocuments([]); // Đảm bảo documents là mảng rỗng khi có lỗi
+     } finally {
+       setLoading(false);
+     }
+   }, []);
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
-  const filteredDocs = documents.filter(doc => 
-    doc.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.preview.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+   const filteredDocs = useMemo(() => {
+     const lowerSearchTerm = searchTerm.toLowerCase();
+     return documents.filter(doc => 
+       (doc.name && doc.name.toLowerCase().includes(lowerSearchTerm)) ||
+       (doc.destination && doc.destination.toLowerCase().includes(lowerSearchTerm)) ||
+       (doc.preview && doc.preview.toLowerCase().includes(lowerSearchTerm))
+     );
+   }, [documents, searchTerm]);
 
   return (
     <div className="space-y-6">
