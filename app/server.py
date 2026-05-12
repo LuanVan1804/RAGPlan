@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langserve import add_routes
-from app.graph import graph
+from app.graph import app_graph
 from app.config import settings
 from langchain_core.runnables import RunnableLambda
 from app.admin import admin_router
@@ -24,7 +24,7 @@ app.add_middleware(
 def travel_chain(user_input: dict) -> dict:
     """Wrapper to convert input format for LangGraph."""
     message = user_input.get("message", user_input)
-    return graph.invoke({"user_input": str(message)})
+    return app_graph.invoke({"user_input": str(message)})
 
 runnable_chain = RunnableLambda(travel_chain)
 
