@@ -36,11 +36,14 @@ const UploadCard = () => {
   };
 
   const validateAndSetFile = (selectedFile) => {
-    if (selectedFile.type === "text/plain" || selectedFile.name.endsWith('.txt')) {
+    const isTxt = selectedFile.type === "text/plain" || selectedFile.name.endsWith('.txt');
+    const isPdf = selectedFile.type === "application/pdf" || selectedFile.name.endsWith('.pdf');
+
+    if (isTxt || isPdf) {
       setFile(selectedFile);
       setStatus(null);
     } else {
-      alert("Hiện tại hệ thống chỉ hỗ trợ định dạng file .txt");
+      alert("Hiện tại hệ thống chỉ hỗ trợ định dạng file .txt và file .pdf");
     }
   };
 
@@ -55,12 +58,15 @@ const UploadCard = () => {
     setStatus(null);
 
     try {
-      const content = await file.text();
-      const response = await axios.post('http://localhost:8000/admin/knowledge/ingest', {
-        content: content,
-        destination: file.name.split('.')[0].toLowerCase(),
-        category: 'travel_guide',
-        tags: ['uploaded_via_ui']
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('destination', file.name.split('.')[0].toLowerCase());
+      formData.append('category', 'travel_guide');
+
+      const response = await axios.post('http://localhost:8000/admin/knowledge/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
       if (response.data.status === 'success') {
@@ -92,23 +98,21 @@ const UploadCard = () => {
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        className={`relative group border-2 border-dashed rounded-2xl p-8 transition-all duration-500 flex flex-col items-center justify-center overflow-hidden ${
-          dragActive 
-            ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' 
+        className={`relative group border-2 border-dashed rounded-2xl p-8 transition-all duration-500 flex flex-col items-center justify-center overflow-hidden ${dragActive
+            ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
             : 'border-slate-200 dark:border-slate-800 hover:border-primary-400/50 hover:bg-slate-50/50 dark:hover:bg-surface-800/50'
-        }`}
+          }`}
       >
         <input
           ref={inputRef}
           type="file"
           className="hidden"
-          accept=".txt"
+          accept=".txt,.pdf"
           onChange={handleChange}
         />
 
-        <div className={`p-4 rounded-xl mb-4 transition-transform duration-500 group-hover:scale-110 ${
-          dragActive ? 'bg-primary-500 text-white shadow-glow-primary' : 'bg-slate-100 dark:bg-surface-800 text-slate-400 dark:text-slate-500'
-        }`}>
+        <div className={`p-4 rounded-xl mb-4 transition-transform duration-500 group-hover:scale-110 ${dragActive ? 'bg-primary-500 text-white shadow-glow-primary' : 'bg-slate-100 dark:bg-surface-800 text-slate-400 dark:text-slate-500'
+          }`}>
           <UploadCloud size={32} strokeWidth={1.5} />
         </div>
 
@@ -121,7 +125,7 @@ const UploadCard = () => {
             )}
           </p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-6">
-            Hệ thống hiện tại chỉ hỗ trợ file .txt.
+            Hỗ trợ định dạng .txt và .pdf
           </p>
         </div>
 
@@ -152,8 +156,8 @@ const UploadCard = () => {
               </div>
             </div>
             <div className="flex space-x-3">
-              <button 
-                onClick={() => setFile(null)} 
+              <button
+                onClick={() => setFile(null)}
                 className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-colors"
               >
                 <X size={20} />

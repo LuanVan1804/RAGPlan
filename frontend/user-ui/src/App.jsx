@@ -1,5 +1,4 @@
 import ChatBot from 'react-chatbotify';
-import Sidebar from './components/Sidebar.jsx';
 
 function App() {
   // Cấu hình kịch bản chat và kết nối với Backend RAG
