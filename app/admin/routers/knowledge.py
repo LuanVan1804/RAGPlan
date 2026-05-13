@@ -8,8 +8,6 @@ from typing import Optional
 from app.admin.schemas.knowledge import (
     IngestRequest,
     IngestResponse,
-    BulkIngestRequest,
-    UpdateKnowledgeRequest,
     KnowledgeListResponse,
     DocumentInfo,
 )
@@ -22,12 +20,6 @@ router = APIRouter(prefix="/admin/knowledge", tags=["Admin — Knowledge"])
 async def ingest_document(data: IngestRequest):
     """Thêm 1 tài liệu kiến thức mới vào hệ thống RAG."""
     return knowledge_service.ingest(data)
-
-
-@router.post("/bulk-ingest", response_model=list[IngestResponse])
-async def bulk_ingest_documents(data: BulkIngestRequest):
-    """Thêm nhiều tài liệu cùng lúc (tối đa 50)."""
-    return knowledge_service.bulk_ingest(data.documents)
 
 
 @router.get("/list", response_model=KnowledgeListResponse)
@@ -43,12 +35,6 @@ async def list_documents(
 async def get_document(doc_id: str):
     """Xem chi tiết 1 tài liệu theo doc_id."""
     return knowledge_service.get_document(doc_id)
-
-
-@router.put("/{doc_id}", response_model=DocumentInfo)
-async def update_document(doc_id: str, updates: UpdateKnowledgeRequest):
-    """Cập nhật nội dung hoặc metadata của 1 tài liệu."""
-    return knowledge_service.update_document(doc_id, updates)
 
 
 @router.post("/search", response_model=list[DocumentInfo])

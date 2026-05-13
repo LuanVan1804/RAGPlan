@@ -30,24 +30,6 @@ class IngestResponse(BaseModel):
     destination: str
 
 
-class BulkIngestRequest(BaseModel):
-    """Request to ingest multiple documents at once."""
-    documents: list[IngestRequest] = Field(
-        ...,
-        min_length=1,
-        max_length=50,
-        description="Danh sách tài liệu cần thêm (1-50)",
-    )
-
-
-class UpdateKnowledgeRequest(BaseModel):
-    """Request to update an existing document. Only provided fields are updated."""
-    content: Optional[str] = Field(None, min_length=10, description="Nội dung mới")
-    destination: Optional[str] = Field(None, min_length=2, description="Điểm đến mới")
-    category: Optional[CategoryEnum] = Field(None, description="Phân loại mới")
-    tags: Optional[list[str]] = Field(None, description="Tags mới")
-
-
 class DocumentInfo(BaseModel):
     """Summary information about a stored document."""
     doc_id: str

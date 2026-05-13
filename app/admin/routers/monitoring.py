@@ -16,12 +16,6 @@ async def get_system_status():
     return monitoring_service.get_system_status()
 
 
-@router.get("/health")
-async def health_check():
-    """Health check đơn giản cho load balancer / uptime monitor."""
-    return {"status": "ok"}
-
-
 @router.get("/destinations")
 async def get_destinations():
     """Danh sách tất cả destinations đã có dữ liệu trong knowledge base."""
