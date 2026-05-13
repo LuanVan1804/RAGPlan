@@ -10,7 +10,6 @@ from app.admin.schemas.knowledge import (
     IngestResponse,
     DocumentInfo,
     KnowledgeListResponse,
-    UpdateKnowledgeRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,23 +52,6 @@ def ingest(request: IngestRequest) -> IngestResponse:
         doc_id=doc_id,
         destination=request.destination,
     )
-
-
-def bulk_ingest(documents: list[IngestRequest]) -> list[IngestResponse]:
-    """Thêm nhiều tài liệu cùng lúc.
-
-    Args:
-        documents: Danh sách IngestRequest (1-50 tài liệu).
-
-    Returns:
-        Danh sách IngestResponse tương ứng.
-    """
-    results = []
-    for doc_request in documents:
-        result = ingest(doc_request)
-        results.append(result)
-    logger.info(f"Bulk ingested {len(results)} documents")
-    return results
 
 
 def list_documents(
@@ -124,45 +106,6 @@ def get_document(doc_id: str) -> DocumentInfo:
             detail=f"Không tìm thấy tài liệu với doc_id: {doc_id}",
         )
     return _doc_to_info(doc)
-
-
-def update_document(doc_id: str, updates: UpdateKnowledgeRequest) -> DocumentInfo:
-    """Cập nhật 1 tài liệu đã tồn tại.
-
-    Strategy: tìm doc cũ → tạo doc mới với dữ liệu đã merge → thay thế trong list → rebuild vector store.
-
-    Args:
-        doc_id: UUID của tài liệu cần cập nhật.
-        updates: Các field cần thay đổi (chỉ field không None).
-
-    Raises:
-        HTTPException 404 nếu không tìm thấy.
-
-    Returns:
-        DocumentInfo đã cập nhật.
-    """
-    old_doc = rag.get_document_by_id(doc_id)
-    if old_doc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy tài liệu với doc_id: {doc_id}",
-        )
-
-    # Merge dữ liệu mới với dữ liệu cũ
-    new_content = updates.content if updates.content is not None else old_doc.page_content
-    new_metadata = old_doc.metadata.copy()
-
-    if updates.destination is not None:
-        new_metadata["destination"] = updates.destination.lower()
-    if updates.category is not None:
-        new_metadata["category"] = updates.category.value
-    if updates.tags is not None:
-        new_metadata["tags"] = updates.tags
-
-    new_doc = rag.update_knowledge(doc_id=doc_id, text=new_content, metadata=new_metadata)
-    logger.info(f"Updated document: {doc_id}")
-
-    return _doc_to_info(new_doc)
 
 
 def search_similar(query: str, k: int = 3) -> list[DocumentInfo]:

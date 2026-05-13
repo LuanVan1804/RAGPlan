@@ -361,36 +361,18 @@ class TravelRAG:
             return []
 
         try:
-            listed = self.index.list(namespace=self.namespace)
-            ids: list[str] = []
-            for item in listed:
-                if isinstance(item, str):
-                    ids.append(item)
-                    continue
-                if isinstance(item, dict):
-                    if "id" in item:
-                        ids.append(item["id"])
-                    elif "ids" in item:
-                        ids.extend(item["ids"])
-                    continue
-                item_ids = getattr(item, "ids", None)
-                if item_ids:
-                    ids.extend(item_ids)
-
-            if not ids:
-                return []
-
-            docs: list[Document] = []
-            batch_size = 100
-            for i in range(0, len(ids), batch_size):
-                batch = ids[i : i + batch_size]
-                fetched = self.index.fetch(ids=batch, namespace=self.namespace)
-                vectors = fetched.get("vectors", {}) if isinstance(fetched, dict) else getattr(fetched, "vectors", {}) or {}
-                for vector in vectors.values():
-                    docs.append(self._vector_to_document(vector))
-            return docs
+            # For compatibility with all Pinecone tiers (including Free/Starter),
+            # we use query() with a zero vector instead of list().
+            zero_vector = [0.0] * self.embedding_dimension
+            results = self.index.query(
+                vector=zero_vector,
+                top_k=100,
+                include_metadata=True,
+                namespace=self.namespace
+            )
+            return self._extract_matches(results)
         except Exception as exc:
-            logger.error("Failed to list documents from Pinecone: %s", exc)
+            logger.error("Failed to fetch documents from Pinecone: %s", exc)
             return []
 
     def get_document_by_id(self, doc_id: str) -> Document | None:
