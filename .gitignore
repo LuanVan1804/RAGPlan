@@ -91,3 +91,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Testing docs
+docs_test/
