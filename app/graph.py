@@ -174,7 +174,8 @@ def rag_node(state: TravelPlanState) -> dict:
     """Check Pinecone RAG for destination context, fallback to model knowledge when missing."""
     destination = state["parsed_query"]["destination"]
     query = state["user_input"]
-    docs, has_context = rag.retrieve_destination_context(destination=destination, query=query, k=3)
+    k = 3
+    docs, has_context = rag.retrieve_destination_context(destination=destination, query=query, k=k)
     logger.info("[rag_node] Destination='%s' rag_context=%s", destination, has_context)
     return {
         "travel_docs": docs,

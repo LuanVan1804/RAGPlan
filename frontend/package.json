@@ -1,0 +1,13 @@
+{
+  "name": "ragplan-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install --prefix admin-ui && npm install --prefix user-ui",
+    "dev": "concurrently \"npm run dev --prefix admin-ui\" \"npm run dev --prefix user-ui\"",
+    "build-all": "npm run build --prefix admin-ui && npm run build --prefix user-ui"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

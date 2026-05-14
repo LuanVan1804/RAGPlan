@@ -1,8 +1,9 @@
 """Knowledge Service — business logic layer cho quản lý kiến thức RAG."""
 
 import logging
+import io
 from typing import Optional
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 from langchain_core.documents import Document
 from app.rag import rag
 from app.admin.schemas.knowledge import (
@@ -11,6 +12,7 @@ from app.admin.schemas.knowledge import (
     DocumentInfo,
     KnowledgeListResponse,
 )
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,64 @@ def ingest(request: IngestRequest) -> IngestResponse:
         doc_id=doc_id,
         destination=request.destination,
     )
+
+
+async def process_file_upload(
+    file: UploadFile,
+    destination: str,
+    category: str
+) -> IngestResponse:
+    """Xử lý file upload (.pdf hoặc .txt), trích xuất text và nạp vào RAG."""
+    try:
+        filename = file.filename.lower()
+        extracted_text = ""
+        
+        content = await file.read()
+        
+        if filename.endswith(".pdf"):
+            pdf_reader = PdfReader(io.BytesIO(content))
+            for page in pdf_reader.pages:
+                text = page.extract_text()
+                if text:
+                    extracted_text += text + "\n"
+        elif filename.endswith(".txt"):
+            try:
+                extracted_text = content.decode("utf-8")
+            except UnicodeDecodeError:
+                # Thử decode với latin-1 nếu utf-8 lỗi
+                extracted_text = content.decode("latin-1")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Định dạng file {filename} không được hỗ trợ. Chỉ hỗ trợ .pdf và .txt"
+            )
+        
+        if not extracted_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không thể trích xuất văn bản từ file này hoặc file trống."
+            )
+            
+        # Tạo request object để reuse logic ingest có sẵn
+        from app.admin.schemas.knowledge import CategoryEnum
+        
+        ingest_req = IngestRequest(
+            content=extracted_text,
+            destination=destination,
+            category=CategoryEnum(category) if category else CategoryEnum.TRAVEL_GUIDE,
+            tags=["file_upload", file.filename]
+        )
+        
+        return ingest(ingest_req)
+        
+    except Exception as e:
+        logger.error(f"Error processing file upload: {e}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi xử lý file: {str(e)}"
+        )
 
 
 def list_documents(

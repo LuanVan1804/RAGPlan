@@ -1,4 +1,4 @@
-import { Calendar, MapPin, MoreVertical, ExternalLink, FileText} from 'lucide-react';
+import { Calendar, MapPin, FileText } from 'lucide-react';
 
 const DocumentTable = ({ documents, loading }) => {
   if (loading) {
@@ -34,10 +34,7 @@ const DocumentTable = ({ documents, loading }) => {
           <thead>
             <tr className="bg-slate-50/50 dark:bg-surface-800/50 border-b border-slate-100 dark:border-slate-800">
               <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Destination</th>
-              <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Category</th>
-              <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Preview Content</th>
-              <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Timestamp</th>
-              <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] text-right">Actions</th>
+              <th className="py-3 px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] text-right">Timestamp</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
@@ -51,18 +48,8 @@ const DocumentTable = ({ documents, loading }) => {
                     <span className="font-bold text-sm text-slate-900 dark:text-white capitalize tracking-tight">{doc.destination}</span>
                   </div>
                 </td>
-                <td className="py-3 px-4">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-500/20">
-                    {doc.category}
-                  </span>
-                </td>
-                <td className="py-3 px-4 max-w-md">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-relaxed">
-                    {doc.preview}
-                  </p>
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                <td className="py-3 px-4 text-right">
+                  <div className="flex items-center justify-end text-[10px] font-medium text-slate-400 dark:text-slate-500">
                     <Calendar size={12} className="mr-1.5 opacity-60" />
                     {new Date(doc.created_at).toLocaleDateString('en-US', {
                       month: 'short',
@@ -71,22 +58,12 @@ const DocumentTable = ({ documents, loading }) => {
                     })}
                   </div>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <div className="flex items-center justify-end space-x-1">
-                    <button className="p-1.5 text-slate-400 hover:text-primary-500 dark:hover:text-primary-400 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all active:scale-90">
-                      <ExternalLink size={14} />
-                    </button>
-                    <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-surface-700 transition-all active:scale-90">
-                      <MoreVertical size={14} />
-                    </button>
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      
+
       {/* Table Footer / Pagination Placeholder */}
       <div className="p-4 bg-slate-50/30 dark:bg-surface-900/30 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <p className="text-xs text-slate-400 font-medium">Showing {documents.length} entries</p>
