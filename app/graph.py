@@ -82,9 +82,18 @@ def validation_node(state: TravelPlanState) -> dict:
     recommendation_signals = {"recommend", "suggest", "idea", "ideas", "where should", "best place"}
     fallback_mode = "recommendation" if any(signal in lowered for signal in recommendation_signals) else "plan"
 
+    previous_parsed = state.get("parsed_query", {})
+
     extraction_prompt = f"""
 You are an information extractor for travel planning requests.
-Analyze the user input and return strict JSON with exactly these keys:
+You are provided with the user's current input and their previous travel parameters (if any).
+Update the parameters based on the new user input. If a parameter is not mentioned in the new input, keep its previous value.
+If there are no previous values, use null for missing information.
+
+Previous parameters:
+{json.dumps(previous_parsed, indent=2)}
+
+Return strict JSON with exactly these keys:
 {{
   "is_travel_related": boolean,
   "destination": string | null,
@@ -144,11 +153,11 @@ User input: {user_input}
         }
 
     parsed = {
-        "destination": (extracted.get("destination") or fallback["destination"]).strip() if isinstance(extracted.get("destination") or fallback["destination"], str) else fallback["destination"],
-        "days": max(1, _safe_int(extracted.get("days"), fallback["days"])),
-        "people": max(1, _safe_int(extracted.get("people"), fallback["people"])),
-        "budget": max(0, _safe_int(extracted.get("budget"), fallback["budget"])),
-        "accommodation_type": extracted.get("accommodation_type") or fallback["accommodation_type"],
+        "destination": extracted.get("destination") or previous_parsed.get("destination") or fallback["destination"],
+        "days": max(1, _safe_int(extracted.get("days"), previous_parsed.get("days") or fallback["days"])),
+        "people": max(1, _safe_int(extracted.get("people"), previous_parsed.get("people") or fallback["people"])),
+        "budget": max(0, _safe_int(extracted.get("budget"), previous_parsed.get("budget") or fallback["budget"])),
+        "accommodation_type": extracted.get("accommodation_type") or previous_parsed.get("accommodation_type") or fallback["accommodation_type"],
     }
     request_mode = extracted.get("request_mode") or fallback_mode
     logger.info(

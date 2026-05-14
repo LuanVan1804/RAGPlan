@@ -10,7 +10,7 @@ function App() {
     loop: {
       message: async (params) => {
         try {
-          // Gọi đến API Backend RAG của bạn
+          // Gọi đến API Backend RAG
           const response = await fetch("http://localhost:8000/user/chat/invoke", {
             method: "POST",
             headers: {
@@ -18,7 +18,7 @@ function App() {
             },
             body: JSON.stringify({
               message: params.userInput,
-              thread_id: "user_session_1" // Bạn có thể tạo ID động sau này
+              thread_id: "user_session_1" // Session ID 
             }),
           });
 
@@ -34,7 +34,7 @@ function App() {
     },
   };
 
-  // Tùy chỉnh giao diện để giống bản thiết kế nhất có thể
+  // Tùy chỉnh giao diện
   const settings = {
     general: {
       embedded: true,
