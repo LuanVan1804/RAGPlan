@@ -133,11 +133,11 @@ def parse_user_query(query: str) -> dict:
 
 def format_response(plan_data: dict) -> str:
     """Format travel plan for display."""
-    result = f"## 🌍 Travel Plan: {plan_data.get('destination', 'Unknown')}\n\n"
+    result = f"### Travel Plan: {plan_data.get('destination', 'Unknown')}\n\n"
 
     if "cost" in plan_data:
         cost = plan_data["cost"]
-        result += "### 💰 Budget Breakdown\n"
+        result += "### Budget Breakdown\n"
         result += f"- **Flights**: ${cost.get('breakdown', {}).get('flights', 0)}\n"
         result += f"- **Accommodation**: ${cost.get('breakdown', {}).get('accommodation', 0)}\n"
         result += f"- **Meals**: ${cost.get('breakdown', {}).get('meals', 0)}\n"
@@ -146,7 +146,7 @@ def format_response(plan_data: dict) -> str:
 
     if "weather" in plan_data and plan_data["weather"].get("status") == "success":
         forecast = plan_data["weather"].get("forecast", {})
-        result += "### 🌤️ Weather Forecast\n"
+        result += "### Weather Forecast\n"
         temps = forecast.get("temperature_2m_max", [])
         if temps:
             avg_temp = sum(temps) / len(temps)
@@ -154,10 +154,10 @@ def format_response(plan_data: dict) -> str:
         result += "\n"
 
     if "documents" in plan_data:
-        result += "### 📚 Travel Tips\n"
+        result += "### Travel Tips\n"
         result += plan_data["documents"] + "\n\n"
 
-    result += "### ✈️ Itinerary\n"
+    result += "### Itinerary\n"
     result += "- Day 1-2: Arrival & exploration\n"
     result += f"- Day 3-{plan_data.get('days', 5)-1}: Main activities\n"
     result += f"- Day {plan_data.get('days', 5)}: Departure\n"
