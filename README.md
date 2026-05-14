@@ -27,7 +27,7 @@ RAGPlan/
 │   ├── rag.py                  # Pinecone-backed RAG storage and retrieval
 │   ├── tool.py                 # Weather/cost/parser helper tools
 │   ├── config.py               # .env loading + LangSmith/OpenAI settings
-│   ├── admin/                  # Admin APIs: knowledge, monitoring, config
+│   ├── admin/                  # Admin APIs: routers/ and services/
 │   └── user/                   # User chat APIs
 ├── user-ui/                    # End-user chat frontend (Vite + React)
 ├── admin-ui/                   # Admin frontend for ingestion/listing docs
@@ -80,7 +80,7 @@ uv sync
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-pip install fastapi langserve langchain-openai pinecone httpx uvicorn
+pip install fastapi langserve langchain-openai pinecone httpx uvicorn pypdf python-multipart
 ```
 
 ### Frontends
@@ -148,7 +148,8 @@ Open: `http://localhost:5174`
 ### Admin APIs
 
 - `GET /admin/knowledge/list`
-- `POST /admin/knowledge/ingest`
+- `POST /admin/knowledge/ingest` (JSON)
+- `POST /admin/knowledge/upload` (Multipart - Supports .txt & .pdf)
 - `POST /admin/knowledge/bulk-ingest`
 - `GET /admin/monitoring/status`
 - `GET /admin/config`
@@ -179,9 +180,10 @@ python scripts\test_user_api.py
 
 ### Admin UI (`http://localhost:5174`)
 
-- View existing knowledge docs.
-- Upload `.txt` files to ingest new knowledge (`POST /admin/knowledge/ingest`).
-- Destination is derived from filename in current UI implementation.
+- View existing knowledge docs (simplified table with Destination & Timestamp).
+- Upload `.txt` or `.pdf` files to ingest new knowledge (`POST /admin/knowledge/upload`).
+- Automatic text extraction for PDF files.
+- Destination is derived from filename by default.
 
 ## 9. Notes and troubleshooting
 
